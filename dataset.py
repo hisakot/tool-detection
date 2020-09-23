@@ -61,7 +61,7 @@ class Dataset(object):
         return len(self.images)
 
 def setup_data():
-    datas = Dataset("../green_gloves/org_imgs", None)
+    datas = Dataset("../datas/green_gloves/", None)
 
     try:
         cache = torch.load(DATASET_CACHE)
