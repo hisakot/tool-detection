@@ -5,6 +5,8 @@ import os
 
 import torch
 
+DATASET_CACHE = "./dataset_cache"
+
 class Dataset(object):
     def __init__(self, root, transforms):
         self.root = root
@@ -57,3 +59,22 @@ class Dataset(object):
 
     def __len__(self):
         return len(self.images)
+
+def setup_data():
+    datas = Dataset("../green_gloves/org_imgs", None)
+
+    try:
+        cache = torch.load(DATASET_CACHE)
+        datas.dataset = cache["dataset"]
+        datas.length = cache["length"]
+
+    except FileNotFoundError:
+        dataset_dicts = make_dataset()
+        datas.dataset = dataset_dicts
+        datas.length = len(datas.dataset)
+
+        cache_dict = {"dataset" : datas.dataset,
+                      "length" : datas.length,}
+        torch.save(cache_dict, DATASET_CACHE)
+
+    return datas

@@ -11,9 +11,12 @@ import model
 if __name__ == '__main__':
     # our dataset has two classes only - background and tool
     num_classes = 2
+    
     # use our dataset and defined transformations
-    train = dataset.Dataset("../datas/green_gloves/", None)
-    test = dataset.Dataset("../datas/green_gloves/", None)
+    datas = dataset.setup_data()
+    train_size = int(round(datas.length * 0.8))
+    test_size = datas.length - train_size
+    train, test = torch.utils.data.random_split(datas, [train_size, test_size])
  
     # split the dataset in train and test set
     indices = torch.randperm(len(train)).tolist()
