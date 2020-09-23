@@ -31,7 +31,7 @@ class Dataset(object):
             x1 = np.min(pos[1])
             x2 = np.max(pos[1])
             y1 = np.min(pos[0])
-            y2 = np.max(pos[0max])
+            y2 = np.max(pos[0])
             boxes.append([x1, y1, x2, y2])
 
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -39,8 +39,8 @@ class Dataset(object):
         masks = torch.as_tensor(masks, dtype=torch.uint8)
 
         image_id = torch.tensor([idx])
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:. 0])
-        iscrowd = torch.zeros((num_objs,)), dtype=torch.int64)
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
 
         target = dict()
         target["boxes"] = boxes

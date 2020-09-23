@@ -12,8 +12,8 @@ if __name__ == '__main__':
     # our dataset has two classes only - background and tool
     num_classes = 2
     # use our dataset and defined transformations
-    train = dataset.Dataset("../green_gloves/", None)
-    test = PennFudanDataset('PennFudanPed', None)
+    train = dataset.Dataset("../datas/green_gloves/", None)
+    test = dataset.Dataset("../datas/green_gloves/", None)
  
     # split the dataset in train and test set
     indices = torch.randperm(len(train)).tolist()
