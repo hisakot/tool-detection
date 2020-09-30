@@ -1,67 +1,69 @@
 
+import ast
 import cv2
 import numpy as np
 import os
+import pandas as pd
 
 import torch
 
 DATASET_CACHE = "./dataset_cache"
+DATA_CSV = "../datas/tool_data/annotations.csv"
+ORG_IMG_DIR = "../datas/tool_data/org_imgs/"
 
 class Dataset(object):
-    def __init__(self, root, transforms):
-        self.root = root
-        self.transforms = transforms
-        self.images = list(sorted(os.listdir(os.path.join(root, "org_imgs"))))
-        self.masks = list(sorted(os.listdir(os.path.join(root, "masks"))))
+    def __init__(self):
+        self.dataset = list()
+        self.length = 0
 
     def __getitem__(self, idx):
-        image_path = os.path.join(self.root, self.images[idx])
-        mask_path = os.path.join(self.root, self.masks[idx])
+        # load image
+        image_path = self.dataset[idx]["image_path"]
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mask= cv2.imread(mask_path)
-        mask = np.array(mask)
-        obj_ids = np.unique(mask)
-        obj_ids = obj_ids[1:]
+        image = image.astype(np.float32) / 255.0
+        image = np.transpose(image, (2, 0, 1)) # (c, h, w)
+        image = torch.tensor(image, dtype=torch.int64) # tensor
 
-        masks = mask == obj_ids[:, None, None]
-
-        num_objs = len(obj_ids)
-        boxes = list()
-        for i in range(num_objs):
-            pos = np.where(masks[i])
-            x1 = np.min(pos[1])
-            x2 = np.max(pos[1])
-            y1 = np.min(pos[0])
-            y2 = np.max(pos[0])
-            boxes.append([x1, y1, x2, y2])
-
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.ones((num_objs,), dtype=torch.int64)
-        masks = torch.as_tensor(masks, dtype=torch.uint8)
-
-        image_id = torch.tensor([idx])
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
-
+        # load target
         target = dict()
-        target["boxes"] = boxes
-        target["labels"] = labels
-        target["masks"] = masks
-        target["image_id"] = image_id
-        target["area"] = area
-        target["iscrowd"] = iscrowd
-
-        if self.transforms is not None:
-            image, target = self.transforms(image, target)
+        target["polygons"] = self.dataset[idx]["polygons"]
+        target["tool_labels"] = self.dataset[idx]["tool_labels"]
+        target = torch.tensor(target, dtype=torch.int64)
 
         return image, target
 
     def __len__(self):
-        return len(self.images)
+        return len(self.dataset)
+
+def make_dataset():
+    dataset_dicts = list()
+
+    polygons = list()
+    tool_labels = list()
+    csv_data = pd.read_csv(DATA_CSV, usecols=["filename",
+                                              "region_shape_attributes",
+                                              "region_attributes"])
+    # csv_data.values[i] ->
+    # ['*.png', '{"name":"polygon", "x":[1, 2, ...], "y":[1, 2, ...]}', '{"tool":{"n":true}}']
+    for i in range(len(csv_data.values) - 1):
+        if csv_data.values[i][0] == csv_data.values[i + 1][0]:
+            polygons.append(ast.literal_eval(csv_data.values[i][1]))
+            tool_labels.append(csv_data.values[i][2])
+        else:
+            polygons.append(ast.literal_eval(csv_data.values[i][1]))
+            tool_labels.append(csv_data.values[i][2])
+            image_path = ORG_IMG_DIR + csv_data.values[i][0]
+            dataset_dicts.append({"image_path" : image_path,
+                                  "polygons" : polygons,
+                                  "tool_labels" : tool_labels})
+            polygons = list()
+            tool_labels = list()
+
+    return dataset_dicts
 
 def setup_data():
-    datas = Dataset("../datas/green_gloves/", None)
+    datas = Dataset()
 
     try:
         cache = torch.load(DATASET_CACHE)
