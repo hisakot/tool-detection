@@ -1,4 +1,5 @@
 import os
+import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -14,30 +15,35 @@ import torchvision.transforms as T
 
 # from engine import train_one_epoch, evaluate
 
+DATASET_CACHE = "./dataset_cache"
+
 class Dataset(object):
-    def __init__(self, root, transforms):
+    def __init__(self, root, transforms, dataset, length):
         self.root = root
-        self.transforms = transforms
+#         self.transforms = transforms
+        self.transforms = None
         # load all image files, sorting them to
         # ensure that they are aligned
         self.imgs = list(sorted(os.listdir(os.path.join(root, "org_imgs"))))
         self.masks = list(sorted(os.listdir(os.path.join(root, "masks"))))
 
+        self.dataset = dataset
+        self.length = length
+
     def __getitem__(self, idx):
         # load images ad masks
-        img_path = os.path.join(self.root, "org_imgs", self.imgs[idx])
-        mask_path = os.path.join(self.root, "masks", self.masks[idx])
-        img = Image.open(img_path).convert("RGB")
-        # note that we haven't converted the mask to RGB,
-        # because each color corresponds to a different instance
-        # with 0 being background
-        mask = Image.open(mask_path)
-        # convert the PIL Image into a numpy array
-        mask = np.array(mask)
+        img_path = os.path.join(self.root, "org_imgs", self.dataset[idx]["filename"])
+        mask_path = os.path.join(self.root, "masks", self.dataset[idx]["filename"])
+#         img = Image.open(img_path).convert("RGB")
+        img = cv2.imread(img_path)
+        img = img / 255
+        img = torch.from_numpy(img.astype(np.float32))
+
+        mask = cv2.imread(mask_path)
+#         mask = np.array(mask)
+
         # instances are encoded as different colors
         obj_ids = np.unique(mask)
-        print(img_path)
-        print(obj_ids)
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
 
@@ -46,14 +52,14 @@ class Dataset(object):
         masks = mask == obj_ids[:, None, None]
 
         # get bounding box coordinates for each mask
-        num_objs = len(obj_ids)
+        num_objs = len(self.dataset[idx]["box_list"])
         boxes = []
         for i in range(num_objs):
-            pos = np.where(masks[i])
-            xmin = np.min(pos[1])
-            xmax = np.max(pos[1])
-            ymin = np.min(pos[0])
-            ymax = np.max(pos[0])
+#             pos = np.where(masks[i])
+            xmin = self.dataset[idx]["box_list"][i][0]
+            xmax = self.dataset[idx]["box_list"][i][1]
+            ymin = self.dataset[idx]["box_list"][i][2]
+            ymax = self.dataset[idx]["box_list"][i][3]
             boxes.append([xmin, ymin, xmax, ymax])
 
         # convert everything into a torch.Tensor
@@ -70,7 +76,7 @@ class Dataset(object):
         target = {}
         target["boxes"] = boxes
         target["labels"] = labels
-        target["masks"] = masks
+#         target["masks"] = masks
         target["image_id"] = image_id
         target["area"] = area
         target["iscrowd"] = iscrowd
@@ -159,19 +165,17 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # our dataset has two classes only - background and person
-    num_classes = 9
+    num_classes = 2
     # use our dataset and defined transformations
-#     train = Dataset('../data/tool/', get_transform(train=True))
-#     test = Dataset('../data/tool/', get_transform(train=False))
-    dataset = Dataset('../data/tool/', get_transform(train=True))
+    dataset_cache = torch.load(DATASET_CACHE)
+    dataset = dataset_cache["dataset"]
+    length = dataset_cache["length"]
+    data = Dataset('../data/tool/', get_transform(train=True), dataset, length)
 
     # split the dataset in train and test set
-#     indices = torch.randperm(len(train)).tolist()
-#     train = torch.utils.data.Subset(train, indices[:-50])
-#     test = torch.utils.data.Subset(test, indices[-50:])
-    train_size = int(round(dataset.__len__() * 0.8))
-    test_size = dataset.__len__() - train_size
-    train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
+    train_size = int(round(data.length * 0.8))
+    test_size = data.length - train_size
+    train, test = torch.utils.data.random_split(data, [train_size, test_size])
 
     # get the model using our helper function
     model = get_model_instance_segmentation(num_classes)
