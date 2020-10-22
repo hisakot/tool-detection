@@ -40,15 +40,15 @@ class Dataset(object):
         img = torch.from_numpy(img.astype(np.float32))
 
         mask = cv2.imread(mask_path)
+#         mask = Image.open(mask_path)
 #         mask = np.array(mask)
 
         # instances are encoded as different colors
-        obj_ids = np.unique(mask)
         # first id is the background, so remove it
+        obj_ids = np.unique(mask)
         obj_ids = obj_ids[1:]
 
-        # split the color-encoded mask into a set
-        # of binary masks
+        # split the color-encoded mask into a set of binary masks
         masks = mask == obj_ids[:, None, None]
 
         # get bounding box coordinates for each mask
