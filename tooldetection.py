@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from matplotlib import pyplot as plt
 
 import torch
 from torch.autograd import Variable
@@ -20,10 +21,7 @@ DATASET_CACHE = "./dataset_cache"
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
         self.root = root
-#         self.transforms = transforms
-        self.transforms = None
-        # load all image files, sorting them to
-        # ensure that they are aligned
+        self.transforms = transforms
         self.imgs = list(sorted(os.listdir(os.path.join(root, "org_imgs"))))
         self.masks = list(sorted(os.listdir(os.path.join(root, "masks"))))
 
@@ -34,17 +32,13 @@ class Dataset(object):
         # load images ad masks
         img_path = os.path.join(self.root, "org_imgs", self.dataset[idx]["filename"])
         mask_path = os.path.join(self.root, "masks", self.dataset[idx]["filename"])
-#         img = Image.open(img_path).convert("RGB")
-        img = cv2.imread(img_path)
-        img = img / 255
-        img = torch.from_numpy(img.astype(np.float32))
+        img = Image.open(img_path).convert("RGB")
+#         img = torchvision.transforms.functional.to_tensor(img)
 
-        mask = cv2.imread(mask_path)
-#         mask = Image.open(mask_path)
-#         mask = np.array(mask)
+        mask = Image.open(mask_path)
+        mask = np.array(mask)
+        mask = mask[:, :, 0] + mask[:, :, 1] + mask[:, :, 2]
 
-        # instances are encoded as different colors
-        # first id is the background, so remove it
         obj_ids = np.unique(mask)
         obj_ids = obj_ids[1:]
 
@@ -52,14 +46,14 @@ class Dataset(object):
         masks = mask == obj_ids[:, None, None]
 
         # get bounding box coordinates for each mask
-        num_objs = len(self.dataset[idx]["box_list"])
+        num_objs = len(obj_ids)
         boxes = []
         for i in range(num_objs):
-#             pos = np.where(masks[i])
-            xmin = self.dataset[idx]["box_list"][i][0]
-            xmax = self.dataset[idx]["box_list"][i][1]
-            ymin = self.dataset[idx]["box_list"][i][2]
-            ymax = self.dataset[idx]["box_list"][i][3]
+            pos = np.where(masks[i])
+            xmin = np.min(pos[1])
+            xmax = np.max(pos[1])
+            ymin = np.min(pos[0])
+            ymax = np.max(pos[0])
             boxes.append([xmin, ymin, xmax, ymax])
 
         # convert everything into a torch.Tensor
@@ -76,13 +70,14 @@ class Dataset(object):
         target = {}
         target["boxes"] = boxes
         target["labels"] = labels
-#         target["masks"] = masks
+        target["masks"] = masks
         target["image_id"] = image_id
         target["area"] = area
         target["iscrowd"] = iscrowd
 
         if self.transforms is not None:
-            img, target = self.transforms(img, target)
+            img, target = self.transforms(img)
+            img, target = self.transforms(target)
 
         return img, target
 
@@ -121,7 +116,7 @@ def trainer(train, model, optimizer, lossfunc):
     print("---------- Start Training ----------")
     
     trainloader = torch.utils.data.DataLoader(
-        train, batch_size=2, shuffle=True, num_workers=4)
+        train, batch_size=1, shuffle=True, num_workers=1)
 
     try:
         with tqdm(trainloader, ncols=100) as pbar:
@@ -144,7 +139,7 @@ def tester(test, model):
     print("---------- Start Training ----------")
     
     testloader = torch.utils.data.DataLoader(
-        test, batch_size=2, shuffle=False, num_workers=4)
+        test, batch_size=1, shuffle=False, num_workers=1)
 
     try:
         with tqdm(testloader, ncols=100) as pbar:
@@ -173,8 +168,8 @@ if __name__ == '__main__':
     data = Dataset('../data/tool/', get_transform(train=True), dataset, length)
 
     # split the dataset in train and test set
-    train_size = int(round(data.length * 0.8))
-    test_size = data.length - train_size
+    train_size = int(length * 0.8)
+    test_size = length - train_size
     train, test = torch.utils.data.random_split(data, [train_size, test_size])
 
     # get the model using our helper function
