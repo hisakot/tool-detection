@@ -219,6 +219,9 @@ if __name__ == '__main__':
                                                    gamma=0.1)
     lossfunc = torch.nn.MSELoss
 
+    # tensorboard
+    writer = SummaryWriter(log_dir="./logs")
+
     loss_list = list()
     for epoch in range(100):
         try:
