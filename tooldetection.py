@@ -115,7 +115,7 @@ def trainer(train, model, optimizer, lossfunc):
     print("---------- Start Training ----------")
     
     trainloader = torch.utils.data.DataLoader(
-        train, batch_size=1, shuffle=True, num_workers=1, collate_fn=utils.collate_fn)
+        train, batch_size=4, shuffle=True, num_workers=4, collate_fn=utils.collate_fn)
 
     try:
         with tqdm(trainloader, ncols=100) as pbar:
@@ -151,10 +151,10 @@ def trainer(train, model, optimizer, lossfunc):
         pass
 
 def tester(test, model):
-    print("---------- Start Training ----------")
+    print("---------- Start Testing ----------")
     
     testloader = torch.utils.data.DataLoader(
-        test, batch_size=1, shuffle=False, num_workers=1, collate_fn=utils.collate_fn)
+        test, batch_size=4, shuffle=False, num_workers=4, collate_fn=utils.collate_fn)
 
     try:
         with tqdm(testloader, ncols=100) as pbar:
