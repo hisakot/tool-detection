@@ -33,7 +33,6 @@ class Dataset(object):
         img_path = os.path.join(self.root, "org_imgs", self.dataset[idx]["filename"])
         mask_path = os.path.join(self.root, "masks", self.dataset[idx]["filename"])
         img = Image.open(img_path).convert("RGB")
-#         img = torchvision.transforms.functional.to_tensor(img)
 
         mask = Image.open(mask_path)
         mask = np.array(mask)
