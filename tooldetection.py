@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from matplotlib import pyplot as plt
+import math
 
 import torch
 from torch.autograd import Variable
@@ -12,9 +13,10 @@ import torch.utils
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-import torchvision.transforms as T
 
-# from engine import train_one_epoch, evaluate
+import transforms as T
+from engine import train_one_epoch, evaluate
+import utils
 
 DATASET_CACHE = "./dataset_cache"
 
@@ -75,8 +77,7 @@ class Dataset(object):
         target["iscrowd"] = iscrowd
 
         if self.transforms is not None:
-            img, target = self.transforms(img)
-            img, target = self.transforms(target)
+            img, target = self.transforms(img, target)
 
         return img, target
 
@@ -100,7 +101,6 @@ def get_model_instance_segmentation(num_classes):
     model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
                                                        hidden_layer,
                                                        num_classes)
-
     return model
 
 def get_transform(train):
@@ -115,21 +115,37 @@ def trainer(train, model, optimizer, lossfunc):
     print("---------- Start Training ----------")
     
     trainloader = torch.utils.data.DataLoader(
-        train, batch_size=1, shuffle=True, num_workers=1)
+        train, batch_size=1, shuffle=True, num_workers=1, collate_fn=utils.collate_fn)
 
     try:
         with tqdm(trainloader, ncols=100) as pbar:
             train_loss = 0.0
             for images, targets in pbar:
-                images, labels = Variable(images), Variable(targets)
-                images, labels = images.to(device), targets.to(device)
+                images = list(image.to(device) for image in images)
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+#                 images, labels = Variable(images), Variable(targets)
+#                 images, labels = images.to(device), targets.to(device)
+
+                loss_dict = model(images, targets)
+
+                losses = sum(loss for loss in loss_dict.values())
+
+                # reduce losses over all GPUs for logging purposes
+                loss_dict_reduced = utils.reduce_dict(loss_dict)
+                losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+                loss_value = losses_reduced.item()
+
+                if not math.isfinite(loss_value):
+                    print("Loss is {}, stopping training".format(loss_value))
+                    print(loss_dict_reduced)
+                    sys.exit(1)
 
                 optimizer.zero_grad()
-                outputs = model(images)
-                loss = lossfunc(outputs, labels)
-                loss.background()
+                losses.backward()
                 optimizer.step()
-                train_loss += loss.item()
+
+                train_loss += loss_value
         return train_loss
     except ValueError:
         pass
@@ -138,18 +154,34 @@ def tester(test, model):
     print("---------- Start Training ----------")
     
     testloader = torch.utils.data.DataLoader(
-        test, batch_size=1, shuffle=False, num_workers=1)
+        test, batch_size=1, shuffle=False, num_workers=1, collate_fn=utils.collate_fn)
 
     try:
         with tqdm(testloader, ncols=100) as pbar:
             test_loss = 0.0
             for images, targets in pbar:
-                images, labels = Variable(images), Variable(targets)
-                images, labels = images.to(device), targets.to(device)
+                images = list(image.to(device) for image in images)
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+#                 images, labels = Variable(images), Variable(targets)
+#                 images, labels = images.to(device), targets.to(device)
 
-                outputs = model(images)
-                loss = lossfunc(outputs, labels)
-                test_loss += loss.item()
+                loss_dict = model(images, targets)
+
+                losses = sum(loss for loss in loss_dict.values())
+
+                # reduce losses over all GPUs for logging purposes
+                loss_dict_reduced = utils.reduce_dict(loss_dict)
+                losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+                loss_value = losses_reduced.item()
+
+                if not math.isfinite(loss_value):
+                    print("Loss is {}, stopping training".format(loss_value))
+                    print(loss_dict_reduced)
+                    sys.exit(1)
+
+                test_loss += loss_value
+
         return test_loss
     except ValueError:
         pass
