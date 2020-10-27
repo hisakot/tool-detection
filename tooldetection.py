@@ -15,8 +15,8 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 import transforms as T
-from engine import train_one_epoch, evaluate
 import utils
+# from engine import train_one_epoch, evaluate
 
 DATASET_CACHE = "./dataset_cache"
 
@@ -249,7 +249,7 @@ if __name__ == '__main__':
 
             # tensorboard
             writer.add_scalar("Train_Loss", train_loss, epoch)
-            writer.add_scalar("Train_Loss", train_loss, epoch)
+            writer.add_scalar("Test_Loss", test_loss, epoch)
 
         except ValueError:
             continue
