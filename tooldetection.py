@@ -221,7 +221,8 @@ def get_prediction(img_path, confidence):
     """
     img = Image.open(img_path)
     transform = T.Compose([T.ToTensor()])
-    img = transform(img)
+#     img = transform(img)
+    img = torchvision.transforms.functional.to_tensor(img)
 
     img = img.to(device)
     pred = model([img])
