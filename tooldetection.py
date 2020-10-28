@@ -7,6 +7,7 @@ from PIL import Image
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 import math
+import random
 
 import torch
 from torch.autograd import Variable
