@@ -23,6 +23,7 @@ import utils
 
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/"
+INF_IMGS_PATH = "../data/tool/org_imgs/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
@@ -257,15 +258,18 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     for i in range(len(masks)):
-      rgb_mask = get_coloured_mask(masks[i])
-      img = cv2.addWeighted(img, 1, rgb_mask, 0.5, 0)
-      cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
-      cv2.putText(img,pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, (0,255,0),thickness=text_th)
-    plt.figure(figsize=(20,30))
-    plt.imshow(img)
-    plt.xticks([])
-    plt.yticks([])
-    plt.show()
+        rgb_mask = get_coloured_mask(masks[i])
+        img = cv2.addWeighted(img, 1, rgb_mask, 0.5, 0)
+        cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
+        cv2.putText(img,pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, (0,255,0),thickness=text_th)
+#     plt.figure(figsize=(20,30))
+#     plt.imshow(img)
+#     plt.xticks([])
+#     plt.yticks([])
+#     plt.show()
+        save_path = img_path.replace('org_imgs', 'predicted')
+        cv2.imwrite(save_path, img)
+        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -312,7 +316,9 @@ if __name__ == '__main__':
         CLASS_NAMES = ['__background__', 'pedestrian']
         model.to(device)
 
-        segment_instance("../data/tool/org_imgs/000563.png")
+        inf_imgs = glob.glob(INF_IMGS_PATH + '*')
+        for inf_img in inf_imgs:
+            segment_instance(inf_img)
         exit()
 
     # construct an optimizer
