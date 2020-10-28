@@ -23,7 +23,7 @@ import utils
 
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/"
-INF_IMGS_PATH = "../data/tool/org_imgs/"
+INF_IMGS_PATH = "../main20170707/org_imgs/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
@@ -268,6 +268,7 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
 #     plt.yticks([])
 #     plt.show()
         save_path = img_path.replace('org_imgs', 'predicted')
+        print(save_path)
         cv2.imwrite(save_path, img)
         
 
@@ -299,7 +300,6 @@ if __name__ == '__main__':
     model.to(device)
 
     # set to evaluation mode
-    print(args.evaluation)
     if args.evaluation:
         save_model = glob.glob(MODEL_SAVE_PATH + "*")[0]
         checkpoint = torch.load(save_model, map_location=device)
