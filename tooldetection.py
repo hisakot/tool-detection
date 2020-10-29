@@ -23,7 +23,7 @@ import utils
 
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/"
-INF_IMGS_PATH = "../main20170707/org_imgs/"
+INF_IMGS_PATH = "../data/tool/org_imgs/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
@@ -229,7 +229,14 @@ def get_prediction(img_path, confidence):
     img = img.to(device)
     pred = model([img])
     pred_score = list(pred[0]['scores'].detach().cpu().numpy())
-    pred_t = [pred_score.index(x) for x in pred_score if x>confidence][-1]
+    pred_t = [pred_score.index(x) for x in pred_score if x>confidence]
+    if len(pred_t) == 0:
+        masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+        pred_boxes = []
+        pred_class = []
+        return masks, pred_boxes, pred_class
+    pred_t = pred_t[-1]
+    # pred_t = [pred_score.index(x) for x in pred_score if x>confidence][-1]
     masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
     # print(pred[0]['labels'].numpy().max())
     pred_class = [CLASS_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())]
@@ -258,6 +265,10 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     for i in range(len(masks)):
+        if len(boxes) == 0:
+            save_path = img_path.replace('org_imgs', 'predicted')
+            cv2.imwrite(save_path, img)
+            break
         rgb_mask = get_coloured_mask(masks[i])
         img = cv2.addWeighted(img, 1, rgb_mask, 0.5, 0)
         cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
@@ -267,9 +278,10 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
 #     plt.xticks([])
 #     plt.yticks([])
 #     plt.show()
-        save_path = img_path.replace('org_imgs', 'predicted')
-        print(save_path)
+        save_path = img_path.replace('org_imgs', 'predicted0.7')
+        # print(save_path)
         cv2.imwrite(save_path, img)
+        print(save_path)
         
 
 if __name__ == '__main__':
@@ -313,12 +325,12 @@ if __name__ == '__main__':
                 state_dict[name] = v
             model.load_state_dict(state_dict)
         model.eval()
-        CLASS_NAMES = ['__background__', 'pedestrian']
+        CLASS_NAMES = ['__background__', 'tool']
         model.to(device)
 
         inf_imgs = glob.glob(INF_IMGS_PATH + '*')
         for inf_img in inf_imgs:
-            segment_instance(inf_img)
+            segment_instance(inf_img, confidence=0.7)
         exit()
 
     # construct an optimizer
