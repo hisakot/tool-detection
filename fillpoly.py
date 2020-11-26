@@ -47,6 +47,7 @@ for i in range(len(csv_data.values) - 1):
                         "box_list" : box_list,
                         "tool_label" : tool_label,})
         box_list = list()
+        tool_label = list()
         img = np.zeros((1080, 1920, 3), np.uint8)
 
 
