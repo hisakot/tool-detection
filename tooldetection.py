@@ -36,9 +36,12 @@ class Dataset(object):
         self.length = length
 
     def __getitem__(self, idx):
-        # load images ad masks
+        # load images and masks
         img_path = os.path.join(self.root, "org_imgs", self.dataset[idx]["filename"])
         mask_path = os.path.join(self.root, "masks", self.dataset[idx]["filename"])
+        box_list = self.dataset[idx]["box_list"]
+        tool_label = self.dataset[idx]["tool_label"]
+
         img = Image.open(img_path).convert("RGB")
 
         mask = Image.open(mask_path)
@@ -54,18 +57,20 @@ class Dataset(object):
         # get bounding box coordinates for each mask
         num_objs = len(obj_ids)
         boxes = []
-        for i in range(num_objs):
-            pos = np.where(masks[i])
-            xmin = np.min(pos[1])
-            xmax = np.max(pos[1])
-            ymin = np.min(pos[0])
-            ymax = np.max(pos[0])
-            boxes.append([xmin, ymin, xmax, ymax])
+#         for i in range(num_objs):
+#             pos = np.where(masks[i])
+#             xmin = np.min(pos[1])
+#             xmax = np.max(pos[1])
+#             ymin = np.min(pos[0])
+#             ymax = np.max(pos[0])
+#             boxes.append([xmin, ymin, xmax, ymax])
+        boxes = box_list
 
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         # there is only one class
-        labels = torch.ones((num_objs,), dtype=torch.int64)
+#         labels = torch.ones((num_objs,), dtype=torch.int64)
+        labels = torch.as_tensor(tool_label, dtype=torch.int64)
         masks = torch.as_tensor(masks, dtype=torch.uint8)
 
         image_id = torch.tensor([idx])

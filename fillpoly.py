@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import random
+import re
 
 import torch
 
@@ -22,6 +23,7 @@ csv_data = pd.read_csv(DATA_CSV, usecols=["filename",
 
 dataset = list()
 box_list = list()
+tool_label = list()
 img = np.zeros((1080, 1920, 3), np.uint8)
 for i in range(len(csv_data.values) - 1):
     region_shape_attributes = ast.literal_eval(csv_data.values[i][3])
@@ -37,11 +39,13 @@ for i in range(len(csv_data.values) - 1):
                    max(region_shape_attributes["all_points_x"]),
                    min(region_shape_attributes["all_points_y"]),
                    max(region_shape_attributes["all_points_y"])])
+    tool_label.append(int(re.sub('[^0-9]+', '', csv_data.values[i][4])))
 
     if csv_data.values[i][1] - 1 == csv_data.values[i][2]:
         cv2.imwrite("../data/tool/masks/" + csv_data.values[i][0], img)
         dataset.append({"filename" : csv_data.values[i][0],
-                        "box_list" : box_list,})
+                        "box_list" : box_list,
+                        "tool_label" : tool_label,})
         box_list = list()
         img = np.zeros((1080, 1920, 3), np.uint8)
 
