@@ -277,7 +277,7 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     for i in range(len(masks)):
         if len(boxes) == 0:
-            save_path = img_path.replace('org_imgs', 'tool_detected')
+            save_path = img_path.replace('org_imgs', 'multi_tools_detected')
             cv2.imwrite(save_path, img)
             break
         # print(masks[i].shape)
