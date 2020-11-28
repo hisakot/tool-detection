@@ -36,8 +36,8 @@ for i in range(len(csv_data.values) - 1):
     r = random.randrange(256)
     cv2.fillPoly(img, [vertex], (b, g, r))
     box_list.append([min(region_shape_attributes["all_points_x"]),
-                   max(region_shape_attributes["all_points_x"]),
                    min(region_shape_attributes["all_points_y"]),
+                   max(region_shape_attributes["all_points_x"]),
                    max(region_shape_attributes["all_points_y"])])
     tool_label.append(int(re.sub('[^0-9]+', '', csv_data.values[i][4])))
 
