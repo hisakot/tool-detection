@@ -290,7 +290,7 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
 #     plt.xticks([])
 #     plt.yticks([])
 #     plt.show()
-        save_path = img_path.replace('org_imgs', 'tool_detected')
+        save_path = img_path.replace('org_imgs', 'multi_tools_detected')
         # print(save_path)
         cv2.imwrite(save_path, img)
         print(save_path)
@@ -337,7 +337,7 @@ if __name__ == '__main__':
                 state_dict[name] = v
             model.load_state_dict(state_dict)
         model.eval()
-        CLASS_NAMES = ['__background__', 'tool']
+        CLASS_NAMES = ['__background__', 'forceps', 'tweezers', 'eletrical-scalpel', 'hook', 'syringe', 'cup', 'suction', 'cooper']
         model.to(device)
 
         # inf_img = INF_IMGS_PATH + "000040.png"
