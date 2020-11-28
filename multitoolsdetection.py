@@ -57,20 +57,14 @@ class Dataset(object):
         # get bounding box coordinates for each mask
         num_objs = len(obj_ids)
         boxes = []
-        for i in range(num_objs):
-            pos = np.where(masks[i])
-            xmin = np.min(pos[1])
-            xmax = np.max(pos[1])
-            ymin = np.min(pos[0])
-            ymax = np.max(pos[0])
-            boxes.append([xmin, ymin, xmax, ymax])
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        print(boxes)
-        print(type(boxes))
+#         for i in range(num_objs):
+#             pos = np.where(masks[i])
+#             xmin = np.min(pos[1])
+#             xmax = np.max(pos[1])
+#             ymin = np.min(pos[0])
+#             ymax = np.max(pos[0])
+#             boxes.append([xmin, ymin, xmax, ymax])
         boxes = box_list
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        print("******", boxes)
-        print("******", type(boxes))
 
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
