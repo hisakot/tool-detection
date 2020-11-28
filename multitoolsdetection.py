@@ -23,7 +23,8 @@ import utils
 
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/"
-INF_IMGS_PATH = "../main20170707/org_imgs/"
+# INF_IMGS_PATH = "../main20170707/org_imgs/"
+INF_IMGS_PATH = "../data/tool/org_imgs/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
@@ -326,6 +327,7 @@ if __name__ == '__main__':
     # set to evaluation mode
     if args.evaluation:
         save_model = glob.glob(MODEL_SAVE_PATH + "*")[0]
+        print(save_model)
         checkpoint = torch.load(save_model, map_location=device)
         if torch.cuda.device_count() >= 1:
             model.load_state_dict(checkpoint["model_state_dict"])
@@ -345,7 +347,7 @@ if __name__ == '__main__':
         # exit()
         inf_imgs = glob.glob(INF_IMGS_PATH + '*')
         for inf_img in inf_imgs:
-            segment_instance(inf_img, confidence=0.7)
+            segment_instance(inf_img, confidence=0.5)
         exit()
 
     # construct an optimizer
