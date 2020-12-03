@@ -119,7 +119,7 @@ def get_transform(train):
     transforms = []
     transforms.append(T.ToTensor())
     if train:
-        transforms.append(T.RandomHorizontalFlip(0.5))
+#         transforms.append(T.RandomHorizontalFlip(0.5)) # check
     return T.Compose(transforms)
 
 
@@ -240,7 +240,7 @@ def get_prediction(img_path, confidence):
     pred_t = [pred_score.index(x) for x in pred_score if x>confidence]
     # print("pred_t", pred_t)
     if len(pred_t) == 0:
-        masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+        masks = (pred[0]['masks']>0.1).squeeze().detach().cpu().numpy()
         pred_boxes = []
         pred_class = []
         return masks, pred_boxes, pred_class
@@ -354,11 +354,11 @@ if __name__ == '__main__':
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.005,
-                                momentum=0.9, weight_decay=0.0005)
+                                momentum=0.9, weight_decay=0.0005) # check adam
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=3,
-                                                   gamma=0.1)
+                                                   gamma=0.1) # check
     lossfunc = torch.nn.MSELoss
 
     # tensorboard
