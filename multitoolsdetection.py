@@ -119,7 +119,7 @@ def get_transform(train):
     transforms = []
     transforms.append(T.ToTensor())
     if train:
-#         transforms.append(T.RandomHorizontalFlip(0.5)) # check
+        transforms.append(T.RandomHorizontalFlip(0.5)) # check
     return T.Compose(transforms)
 
 
@@ -353,8 +353,10 @@ if __name__ == '__main__':
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.005,
-                                momentum=0.9, weight_decay=0.0005) # check adam
+    # optimizer = torch.optim.SGD(params, lr=0.005,
+                                # momentum=0.9, weight_decay=0.0005) # check adam
+    optimizer = torch.optim.Adam(params, lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=3,
