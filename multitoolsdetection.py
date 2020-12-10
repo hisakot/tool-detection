@@ -25,7 +25,7 @@ import utils
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/"
 # INF_IMGS_PATH = "../main20170707/org_imgs/"
-INF_IMGS_PATH = "../data/tool/org_imgs/"
+INF_IMGS_PATH = "../data/tool2/org_imgs/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
@@ -240,14 +240,14 @@ def get_prediction(img_path, confidence):
     pred_t = [pred_score.index(x) for x in pred_score if x>confidence]
     # print("pred_t", pred_t)
     if len(pred_t) == 0:
-        masks = (pred[0]['masks']>0.1).squeeze().detach().cpu().numpy()
+        masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
         pred_boxes = []
         pred_class = []
         return masks, pred_boxes, pred_class
     pred_t = pred_t[-1]
     # print("pred_t", pred_t)
     # pred_t = [pred_score.index(x) for x in pred_score if x>confidence][-1]
-    masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+    masks = (pred[0]['masks']>0.1).squeeze().detach().cpu().numpy()
     if masks.shape == (1080, 1920):
         masks = masks[np.newaxis, :, :]
     # print(pred[0]['masks'].shape)
@@ -308,11 +308,12 @@ if __name__ == '__main__':
 
     # our dataset has two classes only - background and person
     num_classes = 9
+    # num_classes = 3
     # use our dataset and defined transformations
     dataset_cache = torch.load(DATASET_CACHE)
     dataset = dataset_cache["dataset"]
     length = dataset_cache["length"]
-    data = Dataset('../data/tool/', get_transform(train=True), dataset, length)
+    data = Dataset('../data/tool2/', get_transform(train=True), dataset, length)
 
     # split the dataset in train and test set
     train_size = int(length * 0.8)
@@ -340,7 +341,8 @@ if __name__ == '__main__':
                 state_dict[name] = v
             model.load_state_dict(state_dict)
         model.eval()
-        CLASS_NAMES = ['__background__', 'forceps', 'tweezers', 'eletrical-scalpel', 'hook', 'syringe', 'cup', 'suction', 'cooper']
+        CLASS_NAMES = ['__background__', 'forceps', 'tweezers', 'eletrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
+        # CLASS_NAMES = ['__background__', 'non-watch', 'watch']
         model.to(device)
 
         # inf_img = INF_IMGS_PATH + "000040.png"
@@ -353,14 +355,14 @@ if __name__ == '__main__':
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    # optimizer = torch.optim.SGD(params, lr=0.005,
-                                # momentum=0.9, weight_decay=0.0005) # check adam
-    optimizer = torch.optim.Adam(params, lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+    optimizer = torch.optim.SGD(params, lr=0.005,
+                                momentum=0.9, weight_decay=0.0005) # check adam
+    # optimizer = torch.optim.Adam(params, lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=3,
-                                                   gamma=0.1) # check
+                                                   gamma=0.1)
     lossfunc = torch.nn.MSELoss
 
     # tensorboard
