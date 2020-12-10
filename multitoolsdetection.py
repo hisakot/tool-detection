@@ -27,6 +27,11 @@ MODEL_SAVE_PATH = "./models/"
 # INF_IMGS_PATH = "../main20170707/org_imgs/"
 INF_IMGS_PATH = "../data/tool2/org_imgs/"
 
+NUM_CLASSES = 9
+CLASS_NAMES = ['__background__', 'forceps', 'tweezers', 'eletrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
+# NUM_CLASSES = 3
+# CLASS_NAMES = ['__background__', 'non-watch', 'watch']
+
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
         self.root = root
@@ -119,7 +124,8 @@ def get_transform(train):
     transforms = []
     transforms.append(T.ToTensor())
     if train:
-        transforms.append(T.RandomHorizontalFlip(0.5)) # check
+        pass
+#         transforms.append(T.RandomHorizontalFlip(0.5)) # check
     return T.Compose(transforms)
 
 
@@ -135,8 +141,6 @@ def trainer(train, model, optimizer, lossfunc):
             for images, targets in pbar:
                 images = list(image.to(device) for image in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-#                 images, labels = Variable(images), Variable(targets)
-#                 images, labels = images.to(device), targets.to(device)
 
                 loss_dict = model(images, targets)
 
@@ -174,8 +178,6 @@ def tester(test, model):
             for images, targets in pbar:
                 images = list(image.to(device) for image in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-#                 images, labels = Variable(images), Variable(targets)
-#                 images, labels = images.to(device), targets.to(device)
 
                 loss_dict = model(images, targets)
 
@@ -307,8 +309,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # our dataset has two classes only - background and person
-    num_classes = 9
-    # num_classes = 3
+    # NUM_CLASSES = 2
     # use our dataset and defined transformations
     dataset_cache = torch.load(DATASET_CACHE)
     dataset = dataset_cache["dataset"]
@@ -321,7 +322,7 @@ if __name__ == '__main__':
     train, test = torch.utils.data.random_split(data, [train_size, test_size])
 
     # get the model using our helper function
-    model = get_model_instance_segmentation(num_classes)
+    model = get_model_instance_segmentation(NUM_CLASSES)
 
     # move model to the right device
     model.to(device)
@@ -341,8 +342,6 @@ if __name__ == '__main__':
                 state_dict[name] = v
             model.load_state_dict(state_dict)
         model.eval()
-        CLASS_NAMES = ['__background__', 'forceps', 'tweezers', 'eletrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
-        # CLASS_NAMES = ['__background__', 'non-watch', 'watch']
         model.to(device)
 
         # inf_img = INF_IMGS_PATH + "000040.png"
