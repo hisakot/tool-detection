@@ -24,6 +24,7 @@ import utils
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/"
 INF_IMGS_PATH = "../main20170707/org_imgs/"
+INF_IMGS_PATH = "../data/tool2/org_img/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
