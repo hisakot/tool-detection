@@ -2,6 +2,7 @@ import argparse, os, glob, sys, json, random, tqdm
 import numpy as np
 from matplotlib import pyplot as plt
 import cv2 as cv
+from PIL import Image
 
 import torch
 import torchvision
@@ -10,6 +11,7 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 sys.path.append('../vision/references/detection'.replace('/', os.sep))
 import engine, utils
+import transforms as T
 
 def horizontal_flip(img, masks, boxes, p):
     if random.random() < p:
@@ -115,7 +117,7 @@ if __name__ == '__main__':
         dataset = Dataset(img_paths, annotation, is_train=True)
         train_size = int(len(dataset) * 0.8)
         test_size = len(dataset) - train_size
-        train, test = torch.utils.data.tandom_split(dataset, [train_size, test_size])
+        train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
         train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=utils.collate_fn)
         test_loader = torch.utils.data.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False, collate_fn=utils.collate_fn)
 
@@ -152,30 +154,45 @@ if __name__ == '__main__':
             coloured_mask = np.stack([r, g, b], axis=2)
             return coloured_mask
 
+        img_paths = glob.glob("../main20170707/org_imgs/*.png")
         dataset = Dataset(img_paths, annotation, is_train=False)
         model.load_state_dict(torch.load("model.pth"))
         model.eval()
         confidence = 0.8
-        for idx in tqdm.tqdm(range(dataset.__len__())):
+        # for idx in tqdm.tqdm(range(dataset.__len__())):
+        for idx in tqdm.tqdm(range(len(img_paths))):
             # Prediction
-            img, _ = dataset.__getitem__(idx)
+            # img, _ = dataset.__getitem__(idx)
+            img_path = img_paths[idx]
+            img = Image.open(img_path)
+            transform = T.Compose([T.ToTensor()])
+            img = torchvision.transforms.functional.to_tensor(img)
             pred = model([img.to(device)])
 
             pred_score = list(pred[0]['scores'].detach().cpu().numpy())
-            pred_t = [pred_score.index(x) for x in pred_score if x>confidence][-1]
+            pred_t = [pred_score.index(x) for x in pred_score if x>confidence]
             masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
             if masks.ndim == 2: masks = masks.reshape([1, masks.shape[0], masks.shape[1]])
             pred_class = [CLASS_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())]
             pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cpu().numpy())]
-            masks = masks[:pred_t+1]
-            boxes = pred_boxes[:pred_t+1]
-            pred_cls = pred_class[:pred_t+1]
+            if len(pred_t) == 0:
+                masks = []
+                boxes = []
+                pred_cls = []
+            else:
+                pred_t = pred_t[-1]
+                masks = masks[:pred_t+1]
+                boxes = pred_boxes[:pred_t+1]
+                pred_cls = pred_class[:pred_t+1]
 
             img = cv.imread(img_paths[idx])
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
             for i in range(len(masks)):
                 rgb_mask = get_coloured_mask(masks[i])
                 img = cv.addWeighted(img, 1, rgb_mask, 0.5, 0)
-                cv.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=3)
-                cv.putText(img, pred_cls[i], boxes[i][0], cv.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), thickness=2)
-            cv.imwrite('result/'+img_paths[idx].split(os.sep)[-1], img)
+                if len(boxes) != 0:
+                    cv.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=3)
+                    cv.putText(img, pred_cls[i], boxes[i][0], cv.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), thickness=2)
+            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+            img = cv.resize(img, (960, 540))
+            cv.imwrite('result2/'+img_paths[idx].split(os.sep)[-1], img)
