@@ -10,7 +10,7 @@ import torchvision.models.detection.mask_rcnn
 import utils
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, is_train):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -42,9 +42,10 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
             print(loss_dict_reduced)
             sys.exit(1)
 
-        optimizer.zero_grad()
-        losses.backward()
-        optimizer.step()
+        if is_train:
+            optimizer.zero_grad()
+            losses.backward()
+            optimizer.step()
 
         if lr_scheduler is not None:
             lr_scheduler.step()
