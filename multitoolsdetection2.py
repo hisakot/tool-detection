@@ -87,6 +87,77 @@ def get_model_instance_segmentation(num_classes):
     
     return model
 
+def trainer(train, model, optimizer):
+    print("---------- Start Training ----------")
+    
+    trainloader = torch.utils.data.DataLoader(
+        train, batch_size=2, shuffle=True, num_workers=4, collate_fn=utils.collate_fn)
+
+    try:
+        with tqdm(trainloader, ncols=100) as pbar:
+            train_loss = 0.0
+            for images, targets in pbar:
+                images = list(image.to(device) for image in images)
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                loss_dict = model(images, targets)
+
+                losses = sum(loss for loss in loss_dict.values())
+
+                # reduce losses over all GPUs for logging purposes
+                loss_dict_reduced = utils.reduce_dict(loss_dict)
+                losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+                loss_value = losses_reduced.item()
+
+                if not math.isfinite(loss_value):
+                    print("Loss is {}, stopping training".format(loss_value))
+                    print(loss_dict_reduced)
+                    sys.exit(1)
+
+                optimizer.zero_grad()
+                losses.backward()
+                optimizer.step()
+
+                train_loss += loss_value
+        return train_loss
+    except ValueError:
+        pass
+
+def tester(test, model):
+    print("---------- Start Testing ----------")
+    
+    testloader = torch.utils.data.DataLoader(
+        test, batch_size=2, shuffle=False, num_workers=4, collate_fn=utils.collate_fn)
+
+    try:
+        with tqdm(testloader, ncols=100) as pbar:
+            test_loss = 0.0
+            for images, targets in pbar:
+                images = list(image.to(device) for image in images)
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                loss_dict = model(images, targets)
+
+                losses = sum(loss for loss in loss_dict.values())
+
+                # reduce losses over all GPUs for logging purposes
+                loss_dict_reduced = utils.reduce_dict(loss_dict)
+                losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+                loss_value = losses_reduced.item()
+
+                if not math.isfinite(loss_value):
+                    print("Loss is {}, stopping training".format(loss_value))
+                    print(loss_dict_reduced)
+                    sys.exit(1)
+
+                test_loss += loss_value
+
+        return test_loss
+    except ValueError:
+        pass
+
 
 if __name__ == '__main__':
     CLASS_NAMES = ['background', 'forceps', 'tweezers', 'eletrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
@@ -118,8 +189,8 @@ if __name__ == '__main__':
         train_size = int(len(dataset) * 0.8)
         test_size = len(dataset) - train_size
         train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
-        train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=utils.collate_fn)
-        test_loader = torch.utils.data.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False, collate_fn=utils.collate_fn)
+#         train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=utils.collate_fn)
+#         test_loader = torch.utils.data.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False, collate_fn=utils.collate_fn)
 
         # optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -127,12 +198,15 @@ if __name__ == '__main__':
 
         # Training
         early_stopping = [np.inf, 3, 0]
-        for epoch in range(NUM_EPOCHS):
-            metric_logger = engine.train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=30, is_train=True)
-            loss = metric_logger.__getattr__('loss').median
-            
-            test_metric_logger = engine.train_one_epoch(model, optimizer, test_loader, device, epoch, print_freq=30, is_train=False)
-            test_loss = test_metric_logger.__getattr__('loss').median
+        train_loss = trainer(train, model, optimizer)
+        with torch.no_grad():
+            test_loss = tester(test, model)
+#         for epoch in range(NUM_EPOCHS):
+#             metric_logger = engine.train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=30, is_train=True)
+#             loss = metric_logger.__getattr__('loss').median
+# 
+#             test_metric_logger = engine.train_one_epoch(model, optimizer, test_loader, device, epoch, print_freq=30, is_train=False)
+#             test_loss = test_metric_logger.__getattr__('loss').median
 
             # early stopping
             if test_loss < early_stopping[0]:
