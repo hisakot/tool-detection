@@ -3,6 +3,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 import cv2 as cv
 from PIL import Image
+from tqdm import tqdm
+import math
 
 import torch
 import torchvision
@@ -181,12 +183,13 @@ if __name__ == '__main__':
     # model
     model = get_model_instance_segmentation(NUM_CLASSES)
     model.to(device)
+    model = torch.nn.DataParallel(model)
 
     img_paths = glob.glob("../data/tool2/org_imgs/*.png")
     if not args.evaluation:
         # dataset
         dataset = Dataset(img_paths, annotation, is_train=True)
-        train_size = int(len(dataset) * 0.8)
+        train_size = int(len(dataset) * 0.9)
         test_size = len(dataset) - train_size
         train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
 #         train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=utils.collate_fn)
@@ -198,10 +201,10 @@ if __name__ == '__main__':
 
         # Training
         early_stopping = [np.inf, 3, 0]
-        train_loss = trainer(train, model, optimizer)
-        with torch.no_grad():
-            test_loss = tester(test, model)
-#         for epoch in range(NUM_EPOCHS):
+        for epoch in range(NUM_EPOCHS):
+            train_loss = trainer(train, model, optimizer)
+            with torch.no_grad():
+                test_loss = tester(test, model)
 #             metric_logger = engine.train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=30, is_train=True)
 #             loss = metric_logger.__getattr__('loss').median
 # 
@@ -210,9 +213,10 @@ if __name__ == '__main__':
 
             # early stopping
             if test_loss < early_stopping[0]:
-                early_stopping[0] = loss
+                early_stopping[0] = test_loss
                 early_stopping[-1] = 0
                 torch.save(model.state_dict(), "model.pth")
+                print(early_stopping)
             else:
                 early_stopping[-1] += 1
                 if early_stopping[-1] == early_stopping[1]:
@@ -228,13 +232,14 @@ if __name__ == '__main__':
             coloured_mask = np.stack([r, g, b], axis=2)
             return coloured_mask
 
-        img_paths = glob.glob("../main20170707/org_imgs/*.png")
-        dataset = Dataset(img_paths, annotation, is_train=False)
-        model.load_state_dict(torch.load("model.pth"))
+        img_paths = glob.glob("../main20180525/org_imgs/*.png")
+        # img_paths = glob.glob("../data/tool/org_imgs/*.png")
+        # dataset = Dataset(img_paths, annotation, is_train=False)
+        model.load_state_dict(torch.load("model.pth", map_location=device))
         model.eval()
         confidence = 0.8
         # for idx in tqdm.tqdm(range(dataset.__len__())):
-        for idx in tqdm.tqdm(range(len(img_paths))):
+        for idx in tqdm(range(len(img_paths))):
             # Prediction
             # img, _ = dataset.__getitem__(idx)
             img_path = img_paths[idx]
@@ -261,12 +266,17 @@ if __name__ == '__main__':
 
             img = cv.imread(img_paths[idx])
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+            multi_tool_masks = np.zeros((img.shape[0], img.shape[1], NUM_CLASSES))
             for i in range(len(masks)):
                 rgb_mask = get_coloured_mask(masks[i])
                 img = cv.addWeighted(img, 1, rgb_mask, 0.5, 0)
                 if len(boxes) != 0:
                     cv.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=3)
                     cv.putText(img, pred_cls[i], boxes[i][0], cv.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), thickness=2)
-            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-            img = cv.resize(img, (960, 540))
-            cv.imwrite('result2/'+img_paths[idx].split(os.sep)[-1], img)
+                for j, class_name in enumerate(CLASS_NAMES):
+                    if pred_cls[i] == class_name:
+                        multi_tool_masks[:, :, j] = masks[i]
+            np.save('../main20180525/multi_channel_tool/'+str(idx+3193).zfill(6), cv.resize(multi_tool_masks, (320, 180)))
+            # img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+            # img = cv.resize(img, (960, 540))
+            # cv.imwrite('../main20180525/multi_tools/'+img_paths[idx].split(os.sep)[-1], img)
