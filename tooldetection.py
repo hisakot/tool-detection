@@ -22,9 +22,9 @@ import utils
 # from engine import train_one_epoch, evaluate
 
 DATASET_CACHE = "./dataset_cache"
-MODEL_SAVE_PATH = "./models/"
+MODEL_SAVE_PATH = "./models/tool_detection/"
 INF_IMGS_PATH = "../main20170707/org_imgs/"
-INF_IMGS_PATH = "../data/tool2/org_img/"
+# INF_IMGS_PATH = "../data/tool2/org_imgs/"
 
 class Dataset(object):
     def __init__(self, root, transforms, dataset, length):
@@ -116,7 +116,8 @@ def get_transform(train):
     transforms = []
     transforms.append(T.ToTensor())
     if train:
-        transforms.append(T.RandomHorizontalFlip(0.5))
+        pass
+        # transforms.append(T.RandomHorizontalFlip(0.5))
     return T.Compose(transforms)
 
 
@@ -207,7 +208,8 @@ def get_coloured_mask(mask):
     r = np.zeros_like(mask).astype(np.uint8)
     g = np.zeros_like(mask).astype(np.uint8)
     b = np.zeros_like(mask).astype(np.uint8)
-    r[mask == 1], g[mask == 1], b[mask == 1] = colours[random.randrange(0,10)]
+    # r[mask == 1], g[mask == 1], b[mask == 1] = colours[random.randrange(0,10)]
+    r[mask == 1], g[mask == 1], b[mask == 1] = colours[3]
     coloured_mask = np.stack([r, g, b], axis=2)
     return coloured_mask
 
@@ -231,24 +233,21 @@ def get_prediction(img_path, confidence):
 
     img = img.to(device)
     pred = model([img])
-    # print(pred)
     pred_score = list(pred[0]['scores'].detach().cpu().numpy())
-    # print("pred_score", pred_score)
     pred_t = [pred_score.index(x) for x in pred_score if x>confidence]
-    # print("pred_t", pred_t)
     if len(pred_t) == 0:
-        masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+        masks = (pred[0]['masks']>confidence).squeeze().detach().cpu().numpy()
+        if masks.shape == (540, 960):
+            masks = masks[np.newaxis, :, :]
+            print(masks.shape)
         pred_boxes = []
         pred_class = []
         return masks, pred_boxes, pred_class
     pred_t = pred_t[-1]
-    # print("pred_t", pred_t)
     # pred_t = [pred_score.index(x) for x in pred_score if x>confidence][-1]
-    masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
-    if masks.shape == (1080, 1920):
+    masks = (pred[0]['masks']>confidence).squeeze().detach().cpu().numpy()
+    if masks.shape == (540, 960):
         masks = masks[np.newaxis, :, :]
-    # print(pred[0]['masks'].shape)
-    # print(masks.shape)
     pred_class = [CLASS_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())]
     pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cpu().numpy())]
     masks = masks[:pred_t+1]
@@ -273,26 +272,22 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
     """
     masks, boxes, pred_cls = get_prediction(img_path, confidence)
     img = cv2.imread(img_path)
+    mask_img = np.zeros((img.shape[0], img.shape[1], 3), np.uint8)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    mask_save_path = img_path.replace('org_imgs', 'tool_masks')
     for i in range(len(masks)):
-        if len(boxes) == 0:
-            save_path = img_path.replace('org_imgs', 'tool_detected')
-            cv2.imwrite(save_path, img)
-            break
-        # print(masks[i].shape)
         rgb_mask = get_coloured_mask(masks[i])
-        img = cv2.addWeighted(img, 1, rgb_mask, 0.5, 0)
-        cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
-        cv2.putText(img,pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, (0,255,0),thickness=text_th)
-#     plt.figure(figsize=(20,30))
-#     plt.imshow(img)
-#     plt.xticks([])
-#     plt.yticks([])
-#     plt.show()
-        save_path = img_path.replace('org_imgs', 'tool_detected')
-        # print(save_path)
-        cv2.imwrite(save_path, img)
-        print(save_path)
+        mask_img = cv2.addWeighted(mask_img, 1, rgb_mask, 1, 0)
+
+    mask_img = cv2.resize(mask_img, (320, 180))
+    cv2.imwrite(mask_save_path, mask_img)
+        
+            # img = cv2.addWeighted(img, 1, rgb_mask, 0.5, 0)
+            # cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
+            # cv2.putText(img,pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, (0,255,0),thickness=text_th)
+    # save_path = img_path.replace('org_imgs', 'tool_detected')
+    # img = cv2.resize(img, (320, 180))
+    # cv2.imwrite(save_path, img)
         
 
 if __name__ == '__main__':
@@ -309,7 +304,7 @@ if __name__ == '__main__':
     dataset_cache = torch.load(DATASET_CACHE)
     dataset = dataset_cache["dataset"]
     length = dataset_cache["length"]
-    data = Dataset('../data/tool/', get_transform(train=True), dataset, length)
+    data = Dataset('../data/tool2/', get_transform(train=True), dataset, length)
 
     # split the dataset in train and test set
     train_size = int(length * 0.8)
@@ -325,6 +320,7 @@ if __name__ == '__main__':
     # set to evaluation mode
     if args.evaluation:
         save_model = glob.glob(MODEL_SAVE_PATH + "*")[0]
+        print(save_model)
         checkpoint = torch.load(save_model, map_location=device)
         if torch.cuda.device_count() >= 1:
             model.load_state_dict(checkpoint["model_state_dict"])
