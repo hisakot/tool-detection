@@ -162,7 +162,7 @@ def tester(test, model):
 
 
 if __name__ == '__main__':
-    CLASS_NAMES = ['background', 'forceps', 'tweezers', 'eletrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
+    CLASS_NAMES = ['background', 'forceps', 'tweezers', 'electrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
     NUM_CLASSES = len(CLASS_NAMES)
     NUM_EPOCHS = 100
     BATCH_SIZE = 2
@@ -223,25 +223,28 @@ if __name__ == '__main__':
                     break
 
     else:
-        def get_coloured_mask(mask):
-            colours = [[0, 255, 0],[0, 0, 255],[255, 0, 0],[0, 255, 255],[255, 255, 0],[255, 0, 255],[80, 70, 180],[250, 80, 190],[245, 145, 50],[70, 150, 250],[50, 190, 190]]
+        def get_coloured_mask(mask, pred_cls):
+            # colours = [[0, 255, 0],[0, 0, 255],[255, 0, 0],[0, 255, 255],[255, 255, 0],[255, 0, 255],[80, 70, 180],[250, 80, 190],[245, 145, 50],[70, 150, 250],[50, 190, 190]]
             r = np.zeros_like(mask).astype(np.uint8)
             g = np.zeros_like(mask).astype(np.uint8)
             b = np.zeros_like(mask).astype(np.uint8)
-            r[mask == 1], g[mask == 1], b[mask == 1] = colours[random.randrange(0,10)]
+            # r[mask == 1], g[mask == 1], b[mask == 1] = colours[random.randrange(0,10)]
+            colours = [[0, 0, 0],[0, 255, 0],[0, 255, 255],[255, 255, 0],[80, 70, 180],[180, 40, 250],[245, 145, 50],[70, 150, 250],[50, 190, 190]]
+            r[mask == 1], g[mask == 1], b[mask == 1] = colours[CLASS_NAMES.index(pred_cls)]
             coloured_mask = np.stack([r, g, b], axis=2)
             return coloured_mask
 
-        img_paths = glob.glob("../main20180525/org_imgs/*.png")
+        img_paths = glob.glob("../main20170707/org_imgs/*.png")
         # img_paths = glob.glob("../data/tool/org_imgs/*.png")
         # dataset = Dataset(img_paths, annotation, is_train=False)
         model.load_state_dict(torch.load("model.pth", map_location=device))
         model.eval()
-        confidence = 0.8
+        confidence = 0.5
         # for idx in tqdm.tqdm(range(dataset.__len__())):
         for idx in tqdm(range(len(img_paths))):
             # Prediction
             # img, _ = dataset.__getitem__(idx)
+
             img_path = img_paths[idx]
             img = Image.open(img_path)
             transform = T.Compose([T.ToTensor()])
@@ -264,19 +267,21 @@ if __name__ == '__main__':
                 boxes = pred_boxes[:pred_t+1]
                 pred_cls = pred_class[:pred_t+1]
 
-            img = cv.imread(img_paths[idx])
+            img = cv.imread(img_path)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
             multi_tool_masks = np.zeros((img.shape[0], img.shape[1], NUM_CLASSES))
+            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+            #img = np.ones((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+
             for i in range(len(masks)):
-                rgb_mask = get_coloured_mask(masks[i])
-                img = cv.addWeighted(img, 1, rgb_mask, 0.5, 0)
-                if len(boxes) != 0:
-                    cv.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=3)
-                    cv.putText(img, pred_cls[i], boxes[i][0], cv.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), thickness=2)
-                for j, class_name in enumerate(CLASS_NAMES):
-                    if pred_cls[i] == class_name:
-                        multi_tool_masks[:, :, j] = masks[i]
-            np.save('../main20180525/multi_channel_tool/'+str(idx+3193).zfill(6), cv.resize(multi_tool_masks, (320, 180)))
-            # img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-            # img = cv.resize(img, (960, 540))
-            # cv.imwrite('../main20180525/multi_tools/'+img_paths[idx].split(os.sep)[-1], img)
+                rgb_mask = get_coloured_mask(masks[i], pred_cls[i])
+                img = cv.addWeighted(img, 1, rgb_mask, 0.9, 0)
+                # if len(boxes) != 0:
+                #     cv.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=3)
+                #     cv.putText(img, pred_cls[i], boxes[i][0], cv.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), thickness=2)
+                # for j, class_name in enumerate(CLASS_NAMES):
+                #     if pred_cls[i] == class_name:
+                #         multi_tool_masks[:, :, j] = masks[i]
+            # np.save('../main20170707/multi_channel_tool/'+str(idx+43383).zfill(6), cv.resize(multi_tool_masks, (320, 180)))
+            img = cv.resize(img, (960, 540))
+            cv.imwrite('../main20170707/result_imgs/test_imgs/'+img_paths[idx].split(os.sep)[-1], img)

@@ -249,7 +249,7 @@ def get_prediction(img_path, confidence):
     pred_t = pred_t[-1]
     # print("pred_t", pred_t)
     # pred_t = [pred_score.index(x) for x in pred_score if x>confidence][-1]
-    masks = (pred[0]['masks']>0.1).squeeze().detach().cpu().numpy()
+    masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
     if masks.shape == (1080, 1920):
         masks = masks[np.newaxis, :, :]
     # print(pred[0]['masks'].shape)
