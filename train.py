@@ -14,6 +14,8 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 sys.path.append('../vision/references/detection'.replace('/', os.sep))
 import engine, utils
 import transforms as T
+import common
+import dataset
 import model
 
 
@@ -103,10 +105,11 @@ if __name__ == '__main__':
     model, device = common.setup_device(model)
 
     # dataset
-    img_paths = glob.glob(common.DATA_IMGS)
+    img_paths = glob.glob(common.TRAIN_DATA_IMGS)
     dataset = dataset.Dataset(img_paths, annotation)
     train_size = int(len(dataset) * 0.9)
-    vald_size = len(dataset) - train_size
+    print(train_size)
+    valid_size = len(dataset) - train_size
     train, valid = torch.utils.data.random_split(dataset, [train_size, valid_size])
 #         train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=utils.collate_fn)
 #         valid_loader = torch.utils.data.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False, collate_fn=utils.collate_fn)
@@ -129,7 +132,7 @@ if __name__ == '__main__':
 
         # early stopping
         if valid_loss < early_stopping[0]:
-            early_stopping[0] = validloss
+            early_stopping[0] = valid_loss
             early_stopping[-1] = 0
             torch.save(model.state_dict(), "model.pth")
             print(early_stopping)

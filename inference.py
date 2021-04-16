@@ -4,8 +4,11 @@ import numpy as np
 from PIL import Image
 import torch
 import torchvision
+import tqdm
 
 import transforms as T
+import common
+import model
 
 def get_coloured_mask(mask, pred_cls):
     r = np.zeros_like(mask).astype(np.uint8)
@@ -18,11 +21,16 @@ def get_coloured_mask(mask, pred_cls):
     return coloured_mask
 
 if __name__ == '__main__':
-    img_paths = glob.glob(common.TEST_DATA_IMGS)
+    # load images
+    img_paths = glob.glob(common.TRAIN_DATA_IMGS)
+    # load model
+    model = model.get_model_instance_segmentation(common.NUM_CLASSES)
+    model, device = common.setup_device(model)
     model.load_state_dict(torch.load("model.pth", map_location=device))
     model.eval()
+
     confidence = 0.5
-    for idx in tqdm(range(len(img_paths))):
+    for idx in range(len(img_paths)):
         # Prediction
         img_path = img_paths[idx]
         img = Image.open(img_path)
@@ -34,7 +42,7 @@ if __name__ == '__main__':
         pred_t = [pred_score.index(x) for x in pred_score if x>confidence]
         masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
         if masks.ndim == 2: masks = masks.reshape([1, masks.shape[0], masks.shape[1]])
-        pred_class = [CLASS_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())]
+        pred_class = [common.CLASS_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())]
         pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cpu().numpy())]
         if len(pred_t) == 0:
             masks = []
@@ -48,14 +56,15 @@ if __name__ == '__main__':
 
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        multi_tool_masks = np.zeros((img.shape[0], img.shape[1], NUM_CLASSES))
+        multi_tool_masks = np.zeros((img.shape[0], img.shape[1], common.NUM_CLASSES))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         #img = np.ones((img.shape[0], img.shape[1], 3), dtype=np.uint8)
 
         for i in range(len(masks)):
             rgb_mask = get_coloured_mask(masks[i], pred_cls[i])
             img = cv2.addWeighted(img, 1, rgb_mask, 0.9, 0)
-            for j, class_name in enumerate(CLASS_NAMES):
+            for j, class_name in enumerate(common.CLASS_NAMES):
                 if pred_cls[i] == class_name:
                     multi_tool_masks[:, :, j] = masks[i]
-        np.save(common.SAVE_NPY_DIR + str(idx+1).zfill(6), cv2.resize(multi_tool_masks, (320, 180)))
+        # np.save(common.SAVE_NPY_DIR + str(idx+1).zfill(6), cv2.resize(multi_tool_masks, (320, 180)))
+        cv2.imwrite(common.SAVE_DIR + str(idx+1).zfill(6) + ".png", img)
