@@ -60,7 +60,7 @@ class Dataset(object):
             img, masks, boxes = horizontal_flip(img, masks, boxes, 0.5)
 
         img = img / 255.
-        img = img.transpose(2,0,1)
+        img = img.transpose(2, 0, 1)
         img = torch.from_numpy(img.astype(np.float32))
         boxes = torch.from_numpy(boxes)
 
@@ -126,15 +126,16 @@ def trainer(train, model, optimizer):
     except ValueError:
         pass
 
-def tester(test, model):
-    print("---------- Start Testing ----------")
+
+def validater(valid, model):
+    print("---------- Start Validating ----------")
     
-    testloader = torch.utils.data.DataLoader(
-        test, batch_size=2, shuffle=False, num_workers=4, collate_fn=utils.collate_fn)
+    validloader = torch.utils.data.DataLoader(
+        valid, batch_size=2, shuffle=False, num_workers=4, collate_fn=utils.collate_fn)
 
     try:
-        with tqdm(testloader, ncols=100) as pbar:
-            test_loss = 0.0
+        with tqdm(validloader, ncols=100) as pbar:
+            valid_loss = 0.0
             for images, targets in pbar:
                 images = list(image.to(device) for image in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -154,19 +155,22 @@ def tester(test, model):
                     print(loss_dict_reduced)
                     sys.exit(1)
 
-                test_loss += loss_value
+                valid_loss += loss_value
 
-        return test_loss
+        return valid_loss
     except ValueError:
         pass
 
 
 if __name__ == '__main__':
-    CLASS_NAMES = ['background', 'forceps', 'tweezers', 'electrical-scalpel', 'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
+    CLASS_NAMES = ['background', 'forceps', 'tweezers', 'electrical-scalpel',
+                   'scalpels', 'hook', 'syringe', 'needle-holder', 'pen']
     NUM_CLASSES = len(CLASS_NAMES)
     NUM_EPOCHS = 100
     BATCH_SIZE = 2
     LEARNING_RATE = 1e-4
+    VIA_JSON = 'via_region_data.json'
+    DATA_IMGS = "../data/tool2/org_imgs/*.png"
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--evaluation', action='store_true')
@@ -176,7 +180,7 @@ if __name__ == '__main__':
     device = torch.device('cuda')
 
     # open via json file
-    tmp = open('via_region_data.json', 'r')
+    tmp = open(VIA_JSON, 'r')
     annotation = json.load(tmp)
     tmp.close()
 
@@ -185,15 +189,15 @@ if __name__ == '__main__':
     model.to(device)
     model = torch.nn.DataParallel(model)
 
-    img_paths = glob.glob("../data/tool2/org_imgs/*.png")
+    img_paths = glob.glob(DATA_IMGS)
     if not args.evaluation:
         # dataset
         dataset = Dataset(img_paths, annotation, is_train=True)
         train_size = int(len(dataset) * 0.9)
-        test_size = len(dataset) - train_size
-        train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
+        vald_size = len(dataset) - train_size
+        train, valid = torch.utils.data.random_split(dataset, [train_size, valid_size])
 #         train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=utils.collate_fn)
-#         test_loader = torch.utils.data.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False, collate_fn=utils.collate_fn)
+#         valid_loader = torch.utils.data.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False, collate_fn=utils.collate_fn)
 
         # optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -204,16 +208,16 @@ if __name__ == '__main__':
         for epoch in range(NUM_EPOCHS):
             train_loss = trainer(train, model, optimizer)
             with torch.no_grad():
-                test_loss = tester(test, model)
+                valid_loss = validater(valid, model)
 #             metric_logger = engine.train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=30, is_train=True)
 #             loss = metric_logger.__getattr__('loss').median
 # 
-#             test_metric_logger = engine.train_one_epoch(model, optimizer, test_loader, device, epoch, print_freq=30, is_train=False)
-#             test_loss = test_metric_logger.__getattr__('loss').median
+#             valid_metric_logger = engine.train_one_epoch(model, optimizer, valid_loader, device, epoch, print_freq=30, is_train=False)
+#             valid_loss = valid_metric_logger.__getattr__('loss').median
 
             # early stopping
-            if test_loss < early_stopping[0]:
-                early_stopping[0] = test_loss
+            if valid_loss < early_stopping[0]:
+                early_stopping[0] = validloss
                 early_stopping[-1] = 0
                 torch.save(model.state_dict(), "model.pth")
                 print(early_stopping)
@@ -282,6 +286,6 @@ if __name__ == '__main__':
                 # for j, class_name in enumerate(CLASS_NAMES):
                 #     if pred_cls[i] == class_name:
                 #         multi_tool_masks[:, :, j] = masks[i]
-            # np.save('../main20170707/multi_channel_tool/'+str(idx+43383).zfill(6), cv.resize(multi_tool_masks, (320, 180)))
+#             np.save('../main20170707/multi_channel_tool/'+str(idx+43383).zfill(6), cv.resize(multi_tool_masks, (320, 180)))
             img = cv.resize(img, (960, 540))
             cv.imwrite('../main20170707/result_imgs/test_imgs/'+img_paths[idx].split(os.sep)[-1], img)
