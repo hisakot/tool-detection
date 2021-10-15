@@ -5,6 +5,7 @@ import cv2 as cv
 from PIL import Image
 from tqdm import tqdm
 import math
+import random
 
 import torch
 import torchvision
@@ -24,6 +25,13 @@ def horizontal_flip(img, masks, boxes, p):
 
     return img, masks, boxes
 
+def illuminate(img):
+    alpha = random.uniform(0, 2)
+    beta = random.uniform(-100, 100)
+    img = alpha * img + beta
+    img = np.clip(img, 0, 255).astype(np.uint8)
+    return img
+
 class Dataset(object):
     def __init__(self, img_paths, annotation, is_train):
         self.img_paths = img_paths
@@ -36,6 +44,9 @@ class Dataset(object):
     def __getitem__(self, idx):
         img_path = self.img_paths[idx]
         img = cv.imread(img_path, 1)
+
+	# data augumentation 21/10/15
+	img = illuminate(img)
 
         regions = self.annotation[img_path.split(os.sep)[-1]]["regions"]
         num_objs = len(regions)
