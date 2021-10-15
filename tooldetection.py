@@ -23,7 +23,7 @@ import utils
 
 DATASET_CACHE = "./dataset_cache"
 MODEL_SAVE_PATH = "./models/tool_detection/"
-INF_IMGS_PATH = "../main20170707/org_imgs/"
+INF_IMGS_PATH = "../main20200214/org_imgs/"
 # INF_IMGS_PATH = "../data/tool2/org_imgs/"
 
 class Dataset(object):
@@ -276,6 +276,9 @@ def segment_instance(img_path, confidence=0.5, rect_th=2, text_size=2, text_th=2
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     mask_save_path = img_path.replace('org_imgs', 'tool_masks')
     for i in range(len(masks)):
+        if len(masks) == 0 or masks[i].ndim != 2:
+            mask_img = np.zeros((320, 180))
+            break
         rgb_mask = get_coloured_mask(masks[i])
         mask_img = cv2.addWeighted(mask_img, 1, rgb_mask, 1, 0)
 
@@ -301,15 +304,15 @@ if __name__ == '__main__':
     # our dataset has two classes only - background and person
     num_classes = 2
     # use our dataset and defined transformations
-    dataset_cache = torch.load(DATASET_CACHE)
-    dataset = dataset_cache["dataset"]
-    length = dataset_cache["length"]
-    data = Dataset('../data/tool2/', get_transform(train=True), dataset, length)
-
-    # split the dataset in train and test set
-    train_size = int(length * 0.8)
-    test_size = length - train_size
-    train, test = torch.utils.data.random_split(data, [train_size, test_size])
+#    dataset_cache = torch.load(DATASET_CACHE)
+#    dataset = dataset_cache["dataset"]
+#    length = dataset_cache["length"]
+#    data = Dataset('../data/tool2/', get_transform(train=True), dataset, length)
+#
+#    # split the dataset in train and test set
+#    train_size = int(length * 0.8)
+#    test_size = length - train_size
+#    train, test = torch.utils.data.random_split(data, [train_size, test_size])
 
     # get the model using our helper function
     model = get_model_instance_segmentation(num_classes)
